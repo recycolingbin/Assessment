@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: portfolio_postgres
+    environment:
+      POSTGRES_DB: portfolio
+      POSTGRES_USER: portfolio_user
+      POSTGRES_PASSWORD: portfolio_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portfolio_user -d portfolio"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: portfolio_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: portfolio_backend
+    environment:
+      DATABASE_URL: postgresql://portfolio_user:portfolio_pass@postgres:5432/portfolio
+      REDIS_URL: redis://redis:6379
+      SECRET_KEY: 9bbe28ed6f5a3a6885f67a18d12d73c0c9835f57b9d452d03ef371a2e13c9b60
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      FRONTEND_URL: http://localhost:3000
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 465
+      SMTP_USER: 2026webapp.test@gmail.com
+      SMTP_PASSWORD: huxlwcmqzuxwgbrj
+      SMTP_FROM: 2026webapp.test@gmail.com
+      GOOGLE_CLIENT_ID: 402883753406-d9jtfbb4m1elokj9tbbjjika3jmpcpdo.apps.googleusercontent.com
+      GOOGLE_CLIENT_SECRET: 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
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build: ./frontend
+    container_name: portfolio_frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+
+volumes:
+  postgres_data:
