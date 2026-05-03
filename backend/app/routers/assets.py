@@ -7,7 +7,7 @@ from app.models.user import User
 from app.models.asset import Asset
 from app.schemas.asset import AssetCreate, AssetUpdate, AssetResponse
 from app.auth import get_current_user
-from app.redis_client import delete_cache
+from app.redis_client import invalidate_user_caches
 from app.utils.stock_data import auto_fill_asset
 
 router = APIRouter(prefix="/assets", tags=["Assets"])

@@ -29,3 +29,17 @@ def delete_cache(key: str):
         redis_client.delete(key)
     except Exception as e:
         print(f"Redis delete error: {e}")
+
+def delete_pattern(pattern: str):
+    """Delete all keys matching a pattern"""
+    try:
+        for key in redis_client.scan_iter(match=pattern):
+            redis_client.delete(key)
+    except Exception as e:
+        print(f"Redis delete pattern error: {e}")
+
+def invalidate_user_caches(user_id: int):
+    """Invalidate every cached view that depends on a user's portfolio."""
+    delete_cache(f"portfolio:{user_id}")
+    delete_cache(f"portfolio:category:{user_id}")
+    delete_pattern(f"performance:{user_id}:*")
