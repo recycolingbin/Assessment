@@ -556,10 +556,12 @@ export default function DashboardPage() {
                       <div key={key} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
                         <h3 className="font-semibold text-slate-900 mb-3">{category.name}</h3>
                         <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Invested:</span>
-                            <span className="font-semibold text-slate-900">${category.total_invested.toFixed(2)}</span>
-                          </div>
+                          {Object.entries(category.currencies || {}).map(([currency, data]: [string, any]) => (
+                            <div key={currency} className="flex justify-between">
+                              <span className="text-slate-600">{currency}:</span>
+                              <span className="font-semibold text-slate-900">{formatCurrency(data.total_invested, currency)}</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )

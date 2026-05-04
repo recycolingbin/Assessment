@@ -44,7 +44,7 @@ def create_asset(
     db.refresh(new_asset)
 
     # Invalidate cache
-    delete_cache(f"portfolio:{current_user.id}")
+    invalidate_user_caches(current_user.id)
 
     return new_asset
 
@@ -95,7 +95,7 @@ def update_asset(
     db.refresh(asset)
 
     # Invalidate cache
-    delete_cache(f"portfolio:{current_user.id}")
+    invalidate_user_caches(current_user.id)
 
     return asset
 
@@ -117,7 +117,7 @@ def delete_asset(
     db.commit()
 
     # Invalidate cache
-    delete_cache(f"portfolio:{current_user.id}")
+    invalidate_user_caches(current_user.id)
 
     return None
 
