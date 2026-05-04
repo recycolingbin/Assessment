@@ -105,7 +105,7 @@ def get_performance_history(
 
         if txn.transaction_type == TransactionType.BUY:
             holdings[txn.asset_id]['quantity'] += txn.quantity
-            holdings[txn.asset_id]['total_invested'] += txn.total_value
+            holdings[txn.asset_id]['total_invested'] += txn.total_amount
         elif txn.transaction_type == TransactionType.SELL:
             if holdings[txn.asset_id]['quantity'] > 0:
                 # Reduce invested proportionally
@@ -127,7 +127,7 @@ def get_performance_history(
 
             if txn.transaction_type == TransactionType.BUY:
                 holdings[txn.asset_id]['quantity'] += txn.quantity
-                holdings[txn.asset_id]['total_invested'] += txn.total_value
+                holdings[txn.asset_id]['total_invested'] += txn.total_amount
             elif txn.transaction_type == TransactionType.SELL:
                 if holdings[txn.asset_id]['quantity'] > 0:
                     # Reduce invested proportionally
