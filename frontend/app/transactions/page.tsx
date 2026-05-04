@@ -80,7 +80,8 @@ export default function TransactionsPage() {
     return matchesType && matchesSymbol;
   });
 
-  const formatCurrency = (value: number, currencyCode: string = 'USD'): string => {
+  const formatCurrency = (value: number | undefined, currencyCode: string = 'USD'): string => {
+    if (value === undefined || value === null) return 'N/A';
     const currencySymbols: { [key: string]: string } = {
       USD: '$',
       EUR: '€',

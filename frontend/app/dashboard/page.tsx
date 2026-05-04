@@ -696,6 +696,111 @@ export default function DashboardPage() {
                   </select>
                 </div>
 
+                {/* Performance Charts for Category */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                  {/* Pie Chart - Asset Distribution in Category */}
+                  <div className="bg-white rounded-lg p-6 border border-slate-200">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4">Asset Distribution</h3>
+                    {(() => {
+                      const categoryAssets: any[] = [];
+                      Object.entries(portfolioData.categories[activeTab].currencies || {}).forEach(([currency, data]: [string, any]) => {
+                        data.assets.forEach((asset: any) => {
+                          categoryAssets.push({
+                            name: asset.symbol,
+                            value: asset.invested_value,
+                          });
+                        });
+                      });
+
+                      return categoryAssets.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={300}>
+                          <PieChart>
+                            <Pie
+                              data={categoryAssets}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                              outerRadius={80}
+                              fill="#8884d8"
+                              dataKey="value"
+                            >
+                              {categoryAssets.map((_, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-[300px] flex items-center justify-center text-slate-400">
+                          No assets in this category
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Line Chart - Individual Asset Performance */}
+                  <div className="bg-white rounded-lg p-6 border border-slate-200">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-semibold text-slate-900">Performance History</h3>
+                      <select
+                        value={performancePeriod}
+                        onChange={(e) => setPerformancePeriod(Number(e.target.value) as 1 | 5 | 7 | 30 | 90 | 365)}
+                        className="px-3 py-1 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value={1}>1 Day</option>
+                        <option value={5}>5 Days</option>
+                        <option value={7}>1 Week</option>
+                        <option value={30}>1 Month</option>
+                        <option value={90}>3 Months</option>
+                        <option value={365}>1 Year</option>
+                      </select>
+                    </div>
+                    {(() => {
+                      // Filter performance data for assets in this category
+                      const categoryAssetIds = new Set<string>();
+                      Object.entries(portfolioData.categories[activeTab].currencies || {}).forEach(([currency, data]: [string, any]) => {
+                        data.assets.forEach((asset: any) => {
+                          categoryAssetIds.add(asset.symbol);
+                        });
+                      });
+
+                      const filteredPerformanceData = performanceData && performanceData.length > 0
+                        ? performanceData
+                        : null;
+
+                      return filteredPerformanceData ? (
+                        <ResponsiveContainer width="100%" height={300}>
+                          <LineChart data={filteredPerformanceData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                              dataKey="date"
+                              tick={{ fontSize: 12 }}
+                              tickFormatter={(value) => {
+                                const date = new Date(value);
+                                return `${date.getMonth() + 1}/${date.getDate()}`;
+                              }}
+                            />
+                            <YAxis tick={{ fontSize: 12 }} />
+                            <Tooltip
+                              formatter={(value: number) => `$${value.toFixed(2)}`}
+                              labelFormatter={(label) => new Date(label).toLocaleDateString()}
+                            />
+                            <Legend />
+                            <Line type="monotone" dataKey="total_value" stroke={TAB_COLORS[activeTab as keyof typeof TAB_COLORS] || '#3b82f6'} name="Category Value" strokeWidth={2} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-[300px] flex items-center justify-center text-slate-400">
+                          No performance data available
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+
                 {/* Summary Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
