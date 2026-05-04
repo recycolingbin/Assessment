@@ -395,6 +395,12 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center gap-3">
               <button
+                onClick={() => router.push('/transactions')}
+                className="px-4 py-2 text-slate-700 hover:text-slate-900 font-medium transition-colors"
+              >
+                Transactions
+              </button>
+              <button
                 onClick={() => router.push('/profile')}
                 className="px-4 py-2 text-slate-700 hover:text-slate-900 font-medium transition-colors"
               >
@@ -548,6 +554,93 @@ export default function DashboardPage() {
                   >
                     + Add Asset
                   </button>
+                </div>
+
+                {/* Charts Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                  {/* Pie Chart - Investment Distribution */}
+                  <div className="bg-white rounded-lg p-6 border border-slate-200">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4">Investment Distribution</h3>
+                    {Object.values(portfolioData?.categories || {}).some((cat: any) => cat.total_invested > 0) ? (
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={Object.entries(portfolioData?.categories || {})
+                              .filter(([_, category]: [string, any]) => category.total_invested > 0)
+                              .map(([key, category]: [string, any]) => ({
+                                name: category.name,
+                                value: category.total_invested,
+                                color: TAB_COLORS[key as keyof typeof TAB_COLORS] || '#6b7280'
+                              }))}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {Object.entries(portfolioData?.categories || {})
+                              .filter(([_, category]: [string, any]) => category.total_invested > 0)
+                              .map(([key, _], index) => (
+                                <Cell key={`cell-${index}`} fill={TAB_COLORS[key as keyof typeof TAB_COLORS] || '#6b7280'} />
+                              ))}
+                          </Pie>
+                          <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-[300px] flex items-center justify-center text-slate-400">
+                        No investment data available
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Line Chart - Performance History */}
+                  <div className="bg-white rounded-lg p-6 border border-slate-200">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-semibold text-slate-900">Performance History</h3>
+                      <select
+                        value={performancePeriod}
+                        onChange={(e) => setPerformancePeriod(Number(e.target.value) as 1 | 5 | 7 | 30 | 90 | 365)}
+                        className="px-3 py-1 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value={1}>1 Day</option>
+                        <option value={5}>5 Days</option>
+                        <option value={7}>1 Week</option>
+                        <option value={30}>1 Month</option>
+                        <option value={90}>3 Months</option>
+                        <option value={365}>1 Year</option>
+                      </select>
+                    </div>
+                    {performanceData && performanceData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={performanceData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="date"
+                            tick={{ fontSize: 12 }}
+                            tickFormatter={(value) => {
+                              const date = new Date(value);
+                              return `${date.getMonth() + 1}/${date.getDate()}`;
+                            }}
+                          />
+                          <YAxis tick={{ fontSize: 12 }} />
+                          <Tooltip
+                            formatter={(value: number) => `$${value.toFixed(2)}`}
+                            labelFormatter={(label) => new Date(label).toLocaleDateString()}
+                          />
+                          <Legend />
+                          <Line type="monotone" dataKey="total_value" stroke="#3b82f6" name="Total Value" strokeWidth={2} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-[300px] flex items-center justify-center text-slate-400">
+                        No performance data available
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
