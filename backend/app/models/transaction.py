@@ -18,6 +18,7 @@ class Transaction(Base):
     quantity = Column(Float, nullable=False)
     price_per_unit = Column(Float, nullable=False)
     total_amount = Column(Float, nullable=False)  # quantity * price_per_unit
+    realized_gain_loss = Column(Float, nullable=True, default=0.0)  # For sell transactions: (sell_price - avg_buy_price) * quantity
     transaction_date = Column(DateTime, nullable=False)  # Required manual timestamp
     notes = Column(Text, nullable=True)
 

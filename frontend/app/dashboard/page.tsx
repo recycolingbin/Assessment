@@ -103,6 +103,7 @@ export default function DashboardPage() {
   const [portfolioData, setPortfolioData] = useState<PortfolioData | null>(null);
   const [performanceData, setPerformanceData] = useState<any>(null);
   const [categoryPerformanceData, setCategoryPerformanceData] = useState<any>(null);
+  const [gainsSummary, setGainsSummary] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddAsset, setShowAddAsset] = useState(false);
@@ -166,14 +167,16 @@ export default function DashboardPage() {
 
   const fetchData = async () => {
     try {
-      const [portfolioRes, transactionsRes, performanceRes] = await Promise.all([
+      const [portfolioRes, transactionsRes, performanceRes, gainsRes] = await Promise.all([
         portfolioAPI.getByCategory(),
         transactionsAPI.getAll(0, 10),
         portfolioAPI.getPerformanceHistory(performancePeriod),
+        portfolioAPI.getGainsSummary(),
       ]);
       setPortfolioData(portfolioRes.data);
       setTransactions(transactionsRes.data);
       setPerformanceData(performanceRes.data);
+      setGainsSummary(gainsRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
       localStorage.removeItem('token');
@@ -573,6 +576,42 @@ export default function DashboardPage() {
                     + Add Asset
                   </button>
                 </div>
+
+                {/* Gains Summary Cards */}
+                {gainsSummary && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="bg-white rounded-lg p-6 border border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-medium text-slate-600">Realized Gains/Loss</h3>
+                        <HelpTooltip content="Total profit or loss from completed sales. This is money you've actually gained or lost from selling assets." />
+                      </div>
+                      <p className={`text-2xl font-bold mt-2 ${gainsSummary.total_realized_gain_loss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {gainsSummary.total_realized_gain_loss >= 0 ? '+' : ''}{formatCurrency(gainsSummary.total_realized_gain_loss, 'USD')}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">{gainsSummary.realized_transactions_count} completed sales</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-6 border border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-medium text-slate-600">Unrealized Gains/Loss</h3>
+                        <HelpTooltip content="Potential profit or loss from assets you currently hold. This is not actual money until you sell." />
+                      </div>
+                      <p className={`text-2xl font-bold mt-2 ${gainsSummary.total_unrealized_gain_loss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {gainsSummary.total_unrealized_gain_loss >= 0 ? '+' : ''}{formatCurrency(gainsSummary.total_unrealized_gain_loss, 'USD')}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">From current holdings</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-6 border border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-medium text-slate-600">Total Profit/Loss</h3>
+                        <HelpTooltip content="Combined total of realized gains (from sales) and unrealized gains (from current holdings)." />
+                      </div>
+                      <p className={`text-2xl font-bold mt-2 ${gainsSummary.total_gain_loss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {gainsSummary.total_gain_loss >= 0 ? '+' : ''}{formatCurrency(gainsSummary.total_gain_loss, 'USD')}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">Overall performance</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Charts Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

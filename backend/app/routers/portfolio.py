@@ -265,6 +265,52 @@ def search_stock_symbols(
     results = search_stocks(q, limit)
     return {"results": results}
 
+@router.get("/gains-summary")
+def get_gains_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get realized and unrealized gains/losses summary"""
+    # Check cache first
+    cache_key = f"gains:{current_user.id}"
+    cached_data = get_cache(cache_key)
+    if cached_data:
+        return cached_data
+
+    # Calculate realized gains (from sell transactions)
+    sell_transactions = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id,
+        Transaction.transaction_type == TransactionType.SELL
+    ).all()
+
+    total_realized_gain_loss = sum(txn.realized_gain_loss or 0 for txn in sell_transactions)
+
+    # Calculate unrealized gains (from current holdings)
+    assets = db.query(Asset).filter(Asset.user_id == current_user.id).all()
+
+    total_unrealized_gain_loss = 0
+    for asset in assets:
+        if asset.quantity > 0:
+            # Current value = quantity * average_buy_price (since we don't have real-time prices)
+            # In production, you'd fetch current market price
+            current_value = asset.quantity * asset.average_buy_price
+            invested_value = asset.quantity * asset.average_buy_price
+            # For now, unrealized is 0 since we use average_buy_price as current price
+            # In production: unrealized = (current_market_price - average_buy_price) * quantity
+            total_unrealized_gain_loss += 0
+
+    result = {
+        "total_realized_gain_loss": round(total_realized_gain_loss, 2),
+        "total_unrealized_gain_loss": round(total_unrealized_gain_loss, 2),
+        "total_gain_loss": round(total_realized_gain_loss + total_unrealized_gain_loss, 2),
+        "realized_transactions_count": len(sell_transactions)
+    }
+
+    # Cache for 5 minutes
+    set_cache(cache_key, result, ttl=300)
+
+    return result
+
 @router.get("/by-category")
 def get_portfolio_by_category(
     db: Session = Depends(get_db),

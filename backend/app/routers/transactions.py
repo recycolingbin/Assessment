@@ -31,6 +31,12 @@ def create_transaction(
     # Calculate total amount
     total_amount = transaction.quantity * transaction.price_per_unit
 
+    # Calculate realized gain/loss for sell transactions
+    realized_gain_loss = 0.0
+    if transaction.transaction_type == TransactionType.SELL:
+        # Realized gain/loss = (sell price - average buy price) * quantity sold
+        realized_gain_loss = (transaction.price_per_unit - asset.average_buy_price) * transaction.quantity
+
     # Create transaction with custom date if provided
     new_transaction = Transaction(
         user_id=current_user.id,
@@ -39,6 +45,7 @@ def create_transaction(
         quantity=transaction.quantity,
         price_per_unit=transaction.price_per_unit,
         total_amount=total_amount,
+        realized_gain_loss=realized_gain_loss,
         transaction_date=transaction.transaction_date if transaction.transaction_date else datetime.utcnow(),
         notes=transaction.notes
     )
