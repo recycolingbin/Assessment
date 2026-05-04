@@ -10,7 +10,7 @@ interface Transaction {
   transaction_type: 'buy' | 'sell';
   quantity: number;
   price_per_unit: number;
-  total_value: number;
+  total_amount: number;
   notes: string;
   transaction_date: string;
   created_at: string;
@@ -224,7 +224,7 @@ export default function TransactionsPage() {
                         {formatCurrency(transaction.price_per_unit, transaction.asset?.currency)}
                       </td>
                       <td className="py-3 px-4 text-right font-semibold text-slate-900">
-                        {formatCurrency(transaction.total_value, transaction.asset?.currency)}
+                        {formatCurrency(transaction.total_amount, transaction.asset?.currency)}
                       </td>
                       <td className="py-3 px-4 text-slate-600 text-xs">
                         {transaction.notes || '-'}

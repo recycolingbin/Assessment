@@ -25,7 +25,23 @@ def create_asset(
     ).first()
 
     if existing_asset:
-        raise HTTPException(status_code=400, detail="Asset with this symbol already exists in your portfolio")
+        # Combine with existing asset - calculate new average price
+        total_cost = (existing_asset.quantity * existing_asset.average_buy_price) + (asset.quantity * asset.average_buy_price)
+        new_quantity = existing_asset.quantity + asset.quantity
+        existing_asset.average_buy_price = total_cost / new_quantity if new_quantity > 0 else 0
+        existing_asset.quantity = new_quantity
+
+        # Update other fields if provided
+        if asset.remarks:
+            existing_asset.remarks = asset.remarks
+
+        db.commit()
+        db.refresh(existing_asset)
+
+        # Invalidate cache
+        invalidate_user_caches(current_user.id)
+
+        return existing_asset
 
     new_asset = Asset(
         user_id=current_user.id,

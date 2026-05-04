@@ -9,7 +9,7 @@ from app.models.asset import Asset
 from app.models.transaction import Transaction, TransactionType
 from app.schemas.transaction import TransactionCreate, TransactionResponse
 from app.auth import get_current_user
-from app.redis_client import delete_cache
+from app.redis_client import invalidate_user_caches
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
@@ -60,7 +60,7 @@ def create_transaction(
     db.refresh(new_transaction)
 
     # Invalidate cache
-    delete_cache(f"portfolio:{current_user.id}")
+    invalidate_user_caches(current_user.id)
 
     return new_transaction
 
