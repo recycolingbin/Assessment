@@ -63,91 +63,94 @@ def get_performance_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get historical performance data for line chart"""
+    """Get historical performance data based on actual buy/sell transactions"""
     # Check cache first
     cache_key = f"performance:{current_user.id}:{days}"
     cached_data = get_cache(cache_key)
     if cached_data:
         return cached_data
 
-    # Get all user assets
-    assets = db.query(Asset).filter(Asset.user_id == current_user.id).all()
-
-    if not assets:
-        return {"dates": [], "assets": []}
-
-    # Generate date range
+    # Get all user transactions
     end_date = datetime.utcnow()
     start_date = end_date - timedelta(days=days)
+
+    transactions = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id,
+        Transaction.transaction_date >= start_date
+    ).order_by(Transaction.transaction_date).all()
+
+    if not transactions:
+        return []
+
+    # Generate date range
     date_range = []
     current = start_date
     while current <= end_date:
-        date_range.append(current.strftime("%Y-%m-%d"))
+        date_range.append(current.date())
         current += timedelta(days=1)
 
-    # Build performance data for each asset
-    assets_performance = []
+    # Track portfolio state over time
+    # Get initial state (all transactions before start_date)
+    initial_transactions = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id,
+        Transaction.transaction_date < start_date
+    ).order_by(Transaction.transaction_date).all()
 
-    for asset in assets:
-        # Get all transactions for this asset up to end_date
-        transactions = db.query(Transaction).filter(
-            Transaction.asset_id == asset.id,
-            Transaction.user_id == current_user.id,
-            Transaction.transaction_date <= end_date
-        ).order_by(Transaction.transaction_date).all()
+    # Calculate initial holdings
+    holdings = {}  # asset_id -> {quantity, total_invested}
 
-        # Calculate daily values
-        daily_values = []
-        cumulative_quantity = 0
-        total_invested = 0
+    for txn in initial_transactions:
+        if txn.asset_id not in holdings:
+            holdings[txn.asset_id] = {'quantity': 0, 'total_invested': 0}
 
-        for date_str in date_range:
-            date = datetime.strptime(date_str, "%Y-%m-%d")
+        if txn.transaction_type == TransactionType.BUY:
+            holdings[txn.asset_id]['quantity'] += txn.quantity
+            holdings[txn.asset_id]['total_invested'] += txn.total_value
+        elif txn.transaction_type == TransactionType.SELL:
+            if holdings[txn.asset_id]['quantity'] > 0:
+                # Reduce invested proportionally
+                ratio = txn.quantity / holdings[txn.asset_id]['quantity']
+                holdings[txn.asset_id]['total_invested'] -= holdings[txn.asset_id]['total_invested'] * ratio
+                holdings[txn.asset_id]['quantity'] -= txn.quantity
 
-            # Process transactions up to this date
-            for txn in transactions:
-                if txn.transaction_date.date() <= date.date():
-                    if txn.transaction_type == TransactionType.BUY:
-                        cumulative_quantity += txn.quantity
-                        total_invested += txn.total_amount
-                    elif txn.transaction_type == TransactionType.SELL:
-                        if cumulative_quantity > 0:
-                            # Reduce invested proportionally
-                            ratio = txn.quantity / cumulative_quantity
-                            total_invested -= total_invested * ratio
-                            cumulative_quantity -= txn.quantity
+    # Build daily performance data
+    performance_data = []
+    transaction_index = 0
 
-            # Calculate current value (mock price movement)
-            # In production, you'd use historical price data
-            days_since_start = (date - start_date).days
-            price_multiplier = 1 + (days_since_start * 0.002)  # Mock 0.2% daily growth
-            current_price = asset.average_buy_price * price_multiplier
-            current_value = cumulative_quantity * current_price
+    for date in date_range:
+        # Process all transactions for this date
+        while transaction_index < len(transactions) and transactions[transaction_index].transaction_date.date() <= date:
+            txn = transactions[transaction_index]
 
-            # Calculate profit/loss
-            profit_loss = current_value - total_invested if total_invested > 0 else 0
+            if txn.asset_id not in holdings:
+                holdings[txn.asset_id] = {'quantity': 0, 'total_invested': 0}
 
-            daily_values.append({
-                "date": date_str,
-                "value": round(current_value, 2),
-                "profit_loss": round(profit_loss, 2)
-            })
+            if txn.transaction_type == TransactionType.BUY:
+                holdings[txn.asset_id]['quantity'] += txn.quantity
+                holdings[txn.asset_id]['total_invested'] += txn.total_value
+            elif txn.transaction_type == TransactionType.SELL:
+                if holdings[txn.asset_id]['quantity'] > 0:
+                    # Reduce invested proportionally
+                    ratio = min(txn.quantity / holdings[txn.asset_id]['quantity'], 1.0)
+                    holdings[txn.asset_id]['total_invested'] -= holdings[txn.asset_id]['total_invested'] * ratio
+                    holdings[txn.asset_id]['quantity'] -= txn.quantity
 
-        assets_performance.append({
-            "symbol": asset.symbol,
-            "name": asset.name,
-            "data": daily_values
+            transaction_index += 1
+
+        # Calculate total portfolio value for this date
+        # Since we don't have real-time price data, use the invested value as current value
+        # In production, you would fetch actual market prices here
+        total_value = sum(h['total_invested'] for h in holdings.values() if h['quantity'] > 0)
+
+        performance_data.append({
+            'date': date.isoformat(),
+            'total_value': round(total_value, 2)
         })
 
-    result = {
-        "dates": date_range,
-        "assets": assets_performance
-    }
-
     # Cache for 5 minutes
-    set_cache(cache_key, result, ttl=300)
+    set_cache(cache_key, performance_data, ttl=300)
 
-    return result
+    return performance_data
 
 @router.get("/search-stocks")
 def search_stock_symbols(
