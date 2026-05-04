@@ -278,12 +278,30 @@ def get_gains_summary(
         return cached_data
 
     # Calculate realized gains (from sell transactions)
+    # We need to recalculate dynamically because:
+    # 1. Old transactions may have realized_gain_loss = 0 (before column existed)
+    # 2. The average_buy_price may have changed after the transaction was created
     sell_transactions = db.query(Transaction).filter(
         Transaction.user_id == current_user.id,
         Transaction.transaction_type == TransactionType.SELL
     ).all()
 
-    total_realized_gain_loss = sum(txn.realized_gain_loss or 0 for txn in sell_transactions)
+    total_realized_gain_loss = 0
+    for txn in sell_transactions:
+        # Use stored value if it exists and is non-zero, otherwise recalculate
+        if txn.realized_gain_loss is not None and txn.realized_gain_loss != 0:
+            total_realized_gain_loss += txn.realized_gain_loss
+        else:
+            # Recalculate for old transactions that have 0 or None
+            asset = db.query(Asset).filter(Asset.id == txn.asset_id).first()
+            if asset:
+                calculated_gain = (txn.price_per_unit - asset.average_buy_price) * txn.quantity
+                total_realized_gain_loss += calculated_gain
+                # Update the transaction record for future queries
+                txn.realized_gain_loss = calculated_gain
+
+    # Commit any updates made during recalculation
+    db.commit()
 
     # Calculate unrealized gains (from current holdings)
     assets = db.query(Asset).filter(Asset.user_id == current_user.id).all()
