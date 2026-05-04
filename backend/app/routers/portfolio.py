@@ -152,6 +152,110 @@ def get_performance_history(
 
     return performance_data
 
+@router.get("/performance-history/{category}")
+def get_category_performance_history(
+    category: str,
+    days: int = 30,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get historical performance data for a specific category based on actual buy/sell transactions"""
+    # Check cache first
+    cache_key = f"performance:{current_user.id}:{category}:{days}"
+    cached_data = get_cache(cache_key)
+    if cached_data:
+        return cached_data
+
+    # Get all user transactions for assets in this category
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=days)
+
+    # Get assets in this category
+    category_assets = db.query(Asset).filter(
+        Asset.user_id == current_user.id,
+        Asset.asset_category == category
+    ).all()
+
+    if not category_assets:
+        return []
+
+    asset_ids = [asset.id for asset in category_assets]
+
+    transactions = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id,
+        Transaction.asset_id.in_(asset_ids),
+        Transaction.transaction_date >= start_date
+    ).order_by(Transaction.transaction_date).all()
+
+    # Generate date range
+    date_range = []
+    current = start_date
+    while current <= end_date:
+        date_range.append(current.date())
+        current += timedelta(days=1)
+
+    # Track portfolio state over time
+    # Get initial state (all transactions before start_date)
+    initial_transactions = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id,
+        Transaction.asset_id.in_(asset_ids),
+        Transaction.transaction_date < start_date
+    ).order_by(Transaction.transaction_date).all()
+
+    # Calculate initial holdings
+    holdings = {}  # asset_id -> {quantity, total_invested}
+
+    for txn in initial_transactions:
+        if txn.asset_id not in holdings:
+            holdings[txn.asset_id] = {'quantity': 0, 'total_invested': 0}
+
+        if txn.transaction_type == TransactionType.BUY:
+            holdings[txn.asset_id]['quantity'] += txn.quantity
+            holdings[txn.asset_id]['total_invested'] += txn.total_amount
+        elif txn.transaction_type == TransactionType.SELL:
+            if holdings[txn.asset_id]['quantity'] > 0:
+                # Reduce invested proportionally
+                ratio = txn.quantity / holdings[txn.asset_id]['quantity']
+                holdings[txn.asset_id]['total_invested'] -= holdings[txn.asset_id]['total_invested'] * ratio
+                holdings[txn.asset_id]['quantity'] -= txn.quantity
+
+    # Build daily performance data
+    performance_data = []
+    transaction_index = 0
+
+    for date in date_range:
+        # Process all transactions for this date
+        while transaction_index < len(transactions) and transactions[transaction_index].transaction_date.date() <= date:
+            txn = transactions[transaction_index]
+
+            if txn.asset_id not in holdings:
+                holdings[txn.asset_id] = {'quantity': 0, 'total_invested': 0}
+
+            if txn.transaction_type == TransactionType.BUY:
+                holdings[txn.asset_id]['quantity'] += txn.quantity
+                holdings[txn.asset_id]['total_invested'] += txn.total_amount
+            elif txn.transaction_type == TransactionType.SELL:
+                if holdings[txn.asset_id]['quantity'] > 0:
+                    # Reduce invested proportionally
+                    ratio = min(txn.quantity / holdings[txn.asset_id]['quantity'], 1.0)
+                    holdings[txn.asset_id]['total_invested'] -= holdings[txn.asset_id]['total_invested'] * ratio
+                    holdings[txn.asset_id]['quantity'] -= txn.quantity
+
+            transaction_index += 1
+
+        # Calculate total category value for this date
+        total_value = sum(h['total_invested'] for h in holdings.values() if h['quantity'] > 0)
+
+        performance_data.append({
+            'date': date.isoformat(),
+            'total_value': round(total_value, 2)
+        })
+
+    # Cache for 5 minutes
+    set_cache(cache_key, performance_data, ttl=300)
+
+    return performance_data
+
 @router.get("/search-stocks")
 def search_stock_symbols(
     q: str = Query(..., min_length=1, description="Search query for stock symbol or name"),

@@ -58,6 +58,7 @@ export const authAPI = {
 export const portfolioAPI = {
   getOverview: () => api.get('/portfolio/overview'),
   getPerformanceHistory: (days: number = 30) => api.get(`/portfolio/performance-history?days=${days}`),
+  getCategoryPerformanceHistory: (category: string, days: number = 30) => api.get(`/portfolio/performance-history/${category}?days=${days}`),
   searchStocks: (query: string, limit: number = 10) => api.get(`/portfolio/search-stocks?q=${encodeURIComponent(query)}&limit=${limit}`),
   getByCategory: () => api.get('/portfolio/by-category'),
 };

@@ -102,6 +102,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<TabType>('overall');
   const [portfolioData, setPortfolioData] = useState<PortfolioData | null>(null);
   const [performanceData, setPerformanceData] = useState<any>(null);
+  const [categoryPerformanceData, setCategoryPerformanceData] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddAsset, setShowAddAsset] = useState(false);
@@ -145,6 +146,23 @@ export default function DashboardPage() {
     }
     fetchData();
   }, [router, performancePeriod]);
+
+  useEffect(() => {
+    // Fetch category-specific performance data when tab changes
+    if (activeTab !== 'overall' && portfolioData) {
+      fetchCategoryPerformance(activeTab);
+    }
+  }, [activeTab, performancePeriod]);
+
+  const fetchCategoryPerformance = async (category: string) => {
+    try {
+      const response = await portfolioAPI.getCategoryPerformanceHistory(category, performancePeriod);
+      setCategoryPerformanceData(response.data);
+    } catch (error) {
+      console.error('Error fetching category performance:', error);
+      setCategoryPerformanceData(null);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -759,16 +777,9 @@ export default function DashboardPage() {
                       </select>
                     </div>
                     {(() => {
-                      // Filter performance data for assets in this category
-                      const categoryAssetIds = new Set<string>();
-                      Object.entries(portfolioData.categories[activeTab].currencies || {}).forEach(([currency, data]: [string, any]) => {
-                        data.assets.forEach((asset: any) => {
-                          categoryAssetIds.add(asset.symbol);
-                        });
-                      });
-
-                      const filteredPerformanceData = performanceData && performanceData.length > 0
-                        ? performanceData
+                      // Use category-specific performance data
+                      const filteredPerformanceData = categoryPerformanceData && categoryPerformanceData.length > 0
+                        ? categoryPerformanceData
                         : null;
 
                       return filteredPerformanceData ? (
