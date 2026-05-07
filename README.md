@@ -28,7 +28,6 @@ A comprehensive full-stack investment portfolio management application that allo
 - **OAuth 2.0 Integration**: Google Sign-In for seamless user onboarding
 - **Email Verification**: Confirmation emails for account activation
 - **Password Reset**: Secure password recovery via email tokens
-- **WebAuthn/Passkey Support**: Biometric authentication for enhanced security
 - **Argon2 Password Hashing**: Industry-standard password hashing algorithm
 
 ### Portfolio Management
@@ -49,7 +48,6 @@ A comprehensive full-stack investment portfolio management application that allo
 - **Performance Metrics**: Track overall portfolio performance and returns
 - **Asset Performance**: Individual asset profit/loss tracking
 - **Interactive Charts**: Recharts-based visualizations for data insights
-- **PDF Export**: Download portfolio reports as PDF documents
 
 ### Performance Optimization
 - **Redis Caching**: In-memory caching for rapid API responses
